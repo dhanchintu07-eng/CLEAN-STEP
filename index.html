@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CleanStep — Smart Sanitizing Entry System</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet">
+
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; font-family:'Plus Jakarta Sans', sans-serif; }
+
+/* ===== CSS VARIABLES ===== */
+:root {
+  --blue:   #1a6cff;
+  --blue2:  #3d9bff;
+  --teal:   #00c9a7;
+  --teal2:  #06e8bc;
+  --mint:   #d4fdf4;
+  --sky:    #e8f4ff;
+  --white:  #ffffff;
+  --slate:  #1e2d4a;
+  --muted:  #6b7f9a;
+  --soft:   #f0f7ff;
+  --warn:   #ff6b35;
+  --gold:   #ffb830;
+  --shadow: 0 8px 40px rgba(26,108,255,0.13);
+  --shadow2: 0 20px 60px rgba(26,108,255,0.18);
+  --r: 16px;
+  --r2: 24px;
+}
+
+/* ===== SLIDES WRAPPER ===== */
+#slides-wrapper {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(60px) scale(0.97);
+  transition: opacity 0.55s cubic-bezier(0.4,0,0.2,1),
+              transform 0.55s cubic-bezier(0.4,0,0.2,1);
+  padding: 2rem;
+}
+.slide.active {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(0) scale(1);
+}
+.slide.exit-left {
+  opacity: 0;
+  transform: translateX(-60px) scale(0.97);
+}
+
+/* ===== NAVIGATION ===== */
+#nav {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(26,108,255,0.12);
+  border-radius: 3rem;
+  padding: 0.6rem 1.2rem;
+  box-shadow: 0 8px 32px rgba(26,108,255,0.12);
+}
+.nav-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 3px 12px rgba(26,108,255,0.3);
+}
+.nav-btn:hover { transform: scale(1.12); box-shadow: 0 6px 20px rgba(26,108,255,0.4); }
+.nav-btn:disabled { opacity:0.3; cursor:default; transform:none; }
+
+#slide-counter {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  min-width: 52px;
+  text-align: center;
+}
+
+/* DOTS */
+#dots {
+  position: fixed;
+  right: 1.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(26,108,255,0.2);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.dot.active { background: var(--blue); transform: scale(1.5); box-shadow: 0 0 8px rgba(26,108,255,0.4); }
+
+/* SLIDE NUMBER TAG */
+.slide-tag {
+  position: absolute;
+  top: 1.5rem; left: 1.75rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ===== SHARED COMPONENTS ===== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 2rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.chip-blue { background: rgba(26,108,255,0.1); color: var(--blue); border: 1px solid rgba(26,108,255,0.2); }
+.chip-teal { background: rgba(0,201,167,0.1); color: var(--teal); border: 1px solid rgba(0,201,167,0.2); }
+
+.card {
+  background: white;
+  border-radius: var(--r2);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(26,108,255,0.06);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 2rem;
+  background: linear-gradient(135deg, var(--blue) 0%, var(--teal) 100%);
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: 3rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 6px 24px rgba(26,108,255,0.3);
+  letter-spacing: 0.02em;
+}
+.btn-primary:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 10px 30px rgba(26,108,255,0.38); }
+
+/* ===== SLIDE 1: TEAM INTRO ===== */
+#s1 {
+  background: linear-gradient(135deg, #e8f4ff 0%, #d4fdf4 50%, #f0f7ff 100%);
+  overflow: hidden;
+}
+#s1 .bg-circle {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+}
+#s1 .bc1 { width:500px; height:500px; background:rgba(26,108,255,0.12); top:-100px; right:-80px; }
+#s1 .bc2 { width:400px; height:400px; background:rgba(0,201,167,0.1); bottom:-80px; left:-60px; }
+
+.team-name-3d {
+  font-family: 'Fraunces', serif;
+  font-weight: 900;
+  font-size: clamp(3.5rem, 9vw, 8rem);
+  letter-spacing: 0.08em;
+  line-height: 1;
+  position: relative;
+  text-align: center;
+  background: linear-gradient(135deg, var(--blue) 0%, #0052cc 30%, var(--teal) 70%, #007a63 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 4px 16px rgba(26,108,255,0.25));
+  animation: float3d 4s ease-in-out infinite;
+}
+@keyframes float3d {
+  0%,100% { transform: perspective(600px) rotateX(0deg) translateY(0); }
+  50%      { transform: perspective(600px) rotateX(4deg) translateY(-8px); }
+}
+
+.team-name-3d span {
+  display: inline-block;
+  animation: letterFloat 3s ease-in-out infinite;
+}
+.team-name-3d span:nth-child(2n) { animation-delay: 0.15s; }
+.team-name-3d span:nth-child(3n) { animation-delay: 0.3s; }
+@keyframes letterFloat {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+.glow-ring {
+  position: absolute;
+  width: 420px; height: 200px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid rgba(26,108,255,0.15);
+  animation: ringPulse 3s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes ringPulse {
+  0%,100% { transform: scale(1); opacity:0.5; }
+  50%      { transform: scale(1.06); opacity:1; }
+}
+
+/* Floating particles */
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particleDrift linear infinite;
+}
+@keyframes particleDrift {
+  0%   { transform: translateY(0) translateX(0) scale(1); opacity:0.7; }
+  50%  { transform: translateY(-60px) translateX(20px) scale(1.2); opacity:0.4; }
+  100% { transform: translateY(-120px) translateX(-10px) scale(0.8); opacity:0; }
+}
+
+/* ===== SLIDE 2: TITLE ===== */
+#s2 { background: white; }
+.s2-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, #f0f7ff 0%, white 40%, #d4fdf4 100%);
+}
+.s2-deco {
+  position: absolute;
+  right: -60px; top: 50%;
+  transform: translateY(-50%);
+  width: 380px; height: 380px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(26,108,255,0.08), rgba(0,201,167,0.08));
+  border: 1.5px dashed rgba(26,108,255,0.15);
+  animation: spinSlow 20s linear infinite;
+}
+@keyframes spinSlow { to { transform: translateY(-50%) rotate(360deg); } }
+.s2-deco2 {
+  position: absolute;
+  right: 20px; top: 50%;
+  transform: translateY(-50%);
+  width: 260px; height: 260px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0,201,167,0.1), rgba(26,108,255,0.05));
+}
+
+.main-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 900;
+  font-size: clamp(4rem,11vw,9rem);
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  background: linear-gradient(135deg, var(--slate) 0%, var(--blue) 60%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.subtitle-badge {
+  display: inline-block;
+  background: linear-gradient(135deg,var(--blue),var(--teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  font-size: clamp(1rem,2.5vw,1.4rem);
+  letter-spacing: 0.03em;
+}
+
+/* ===== SLIDE 3: PROBLEM ===== */
+#s3 {
+  background: linear-gradient(150deg, #fff8f5 0%, #fff 50%, #f0f7ff 100%);
+}
+.problem-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  max-width: 760px;
+  width: 100%;
+}
+.prob-card {
+  background: white;
+  border-radius: var(--r2);
+  padding: 1.75rem 1.25rem;
+  text-align: center;
+  border: 1px solid rgba(255,107,53,0.12);
+  box-shadow: 0 4px 24px rgba(255,107,53,0.07);
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+.prob-card:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 12px 36px rgba(255,107,53,0.14); }
+.prob-icon { font-size: 2.4rem; margin-bottom: 0.75rem; display:block; }
+.prob-title { font-weight: 700; font-size: 0.9rem; color: var(--slate); margin-bottom: 0.35rem; }
+.prob-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.5; }
+
+.problem-headline {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: clamp(1.4rem, 3.5vw, 2.2rem);
+  color: var(--warn);
+  text-align: center;
+  margin-top: 2rem;
+  position: relative;
+}
+.problem-headline::after {
+  content: '';
+  display: block;
+  width: 60px; height: 3px;
+  background: var(--warn);
+  border-radius: 2px;
+  margin: 0.6rem auto 0;
+}
+
+/* ===== SLIDE 4: SOLUTION ===== */
+#s4 { background: linear-gradient(140deg, #f0fffc 0%, white 50%, #e8f4ff 100%); }
+
+.solution-flow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  max-width: 820px;
+  width: 100%;
+  justify-content: center;
+}
+.sol-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+}
+.sol-circle {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  position: relative;
+  transition: transform 0.3s;
+  box-shadow: 0 6px 24px rgba(26,108,255,0.15);
+}
+.sol-circle:hover { transform: scale(1.1) translateY(-4px); }
+.sol-c1 { background: linear-gradient(135deg,#e8f4ff,#c8e6ff); border: 2px solid rgba(26,108,255,0.2); }
+.sol-c2 { background: linear-gradient(135deg,#fff3e0,#ffe0b0); border: 2px solid rgba(255,184,48,0.3); }
+.sol-c3 { background: linear-gradient(135deg,#d4fdf4,#a8f4e2); border: 2px solid rgba(0,201,167,0.3); }
+.sol-c4 { background: linear-gradient(135deg,#e8ffe8,#b8f0b8); border: 2px solid rgba(40,180,40,0.2); }
+
+.sol-label { font-weight: 700; font-size: 0.78rem; color: var(--slate); text-align:center; }
+.sol-sub { font-size: 0.62rem; color: var(--muted); text-align:center; }
+
+.sol-arrow {
+  font-size: 1.2rem;
+  color: var(--blue2);
+  flex-shrink: 0;
+  opacity: 0.5;
+  padding: 0 0.25rem;
+}
+
+.tag-row {
+  display: flex; gap: 0.75rem; flex-wrap:wrap; justify-content:center;
+  margin-top: 2rem;
+}
+.solution-tag {
+  padding: 0.55rem 1.4rem;
+  border-radius: 2rem;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  border: none;
+  transition: transform 0.2s;
+}
+.solution-tag:hover { transform: scale(1.06); }
+.st1 { background: linear-gradient(135deg,var(--blue),var(--blue2)); color:white; box-shadow:0 4px 16px rgba(26,108,255,0.3); }
+.st2 { background: linear-gradient(135deg,var(--teal),var(--teal2)); color:white; box-shadow:0 4px 16px rgba(0,201,167,0.3); }
+.st3 { background: linear-gradient(135deg,var(--gold),#ff9a00); color:white; box-shadow:0 4px 16px rgba(255,184,48,0.3); }
+
+/* ===== SLIDE 5: ARCHITECTURE ===== */
+#s5 { background: linear-gradient(150deg, #e8f4ff 0%, white 100%); }
+
+.arch-flow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  max-width: 900px;
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.arch-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 110px;
+}
+.arch-box {
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--r);
+  text-align: center;
+  width: 110px;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+.arch-box:hover { transform: translateY(-5px); box-shadow: var(--shadow2); }
+.arch-icon { font-size: 1.6rem; display:block; margin-bottom: 0.35rem; }
+.arch-name { font-weight: 700; font-size: 0.72rem; color: var(--slate); }
+.arch-desc { font-size: 0.58rem; color: var(--muted); margin-top:0.15rem; }
+
+.ab1 { background: linear-gradient(135deg,#e8f4ff,#d0e8ff); border:1.5px solid rgba(26,108,255,0.2); }
+.ab2 { background: linear-gradient(135deg,#fff3d4,#ffe8a0); border:1.5px solid rgba(255,184,48,0.3); }
+.ab3 { background: linear-gradient(135deg,#f0e8ff,#e0d0ff); border:1.5px solid rgba(120,80,255,0.2); }
+.ab4 { background: linear-gradient(135deg,#d4fdf4,#a8f4e2); border:1.5px solid rgba(0,201,167,0.3); }
+.ab5 { background: linear-gradient(135deg,#d4f8ff,#a0eefd); border:1.5px solid rgba(0,180,230,0.3); }
+
+.arch-arrow-wrap { display:flex; align-items:center; padding-top: 1.2rem; }
+.arch-arr { font-size:1.1rem; color:var(--blue); opacity:0.4; padding:0 0.15rem; }
+
+/* ===== SLIDE 6: PROTOTYPE ===== */
+#s6 { background: linear-gradient(140deg,white,#f0f7ff); }
+
+.proto-frame {
+  position: relative;
+  width: min(420px,70vw);
+  aspect-ratio: 4/3;
+  border-radius: var(--r2);
+  overflow: hidden;
+  box-shadow: 0 16px 60px rgba(26,108,255,0.18), 0 0 0 1px rgba(26,108,255,0.08);
+  background: linear-gradient(135deg,#e8f4ff,#d4fdf4);
+  display: flex; align-items:center; justify-content:center;
+}
+#prototype-img {
+  width:100%; height:100%; object-fit:cover;
+  display:none;
+}
+.proto-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--muted);
+}
+.proto-placeholder .ph-icon { font-size:3.5rem; }
+.proto-placeholder .ph-txt { font-size:0.78rem; font-weight:600; text-align:center; line-height:1.5; }
+
+/* LABELS */
+.proto-label {
+  position: absolute;
+  background: white;
+  border: 1.5px solid rgba(26,108,255,0.2);
+  border-radius: 2rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--blue);
+  box-shadow: 0 3px 12px rgba(26,108,255,0.12);
+  white-space: nowrap;
+  display: flex; align-items:center; gap:0.3rem;
+}
+.pl-sensor { top:12%; left:5%; }
+.pl-tank   { top:12%; right:5%; }
+.pl-pump   { bottom:30%; left:5%; }
+.pl-nozzle { bottom:30%; right:5%; }
+.pl-mat    { bottom:8%; left:50%; transform:translateX(-50%); }
+.pl-led    { top:50%; right:5%; transform:translateY(-50%); }
+
+.label-dot { width:7px; height:7px; border-radius:50%; background:var(--blue); }
+
+/* UPLOAD BUTTON */
+.upload-btn {
+  display: inline-flex; align-items:center; gap:0.4rem;
+  padding: 0.55rem 1.2rem;
+  border-radius: 2rem;
+  background: rgba(26,108,255,0.08);
+  border: 1.5px solid rgba(26,108,255,0.2);
+  color: var(--blue);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 600; font-size:0.72rem;
+  cursor: pointer; transition: all 0.2s;
+  margin-top: 1rem;
+}
+.upload-btn:hover { background:rgba(26,108,255,0.14); transform:scale(1.03); }
+#img-input, #vid-input { display:none; }
+
+/* ===== SLIDE 7: SIMULATION ===== */
+#s7 { background: linear-gradient(135deg,#f0fffc,white,#e8f4ff); }
+
+.sim-steps {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 1.25rem;
+  max-width: 800px;
+  width: 100%;
+}
+.sim-step {
+  background: white;
+  border-radius: var(--r2);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  border: 1.5px solid rgba(26,108,255,0.1);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.sim-step::before {
+  content:'';
+  position:absolute;
+  bottom:0; left:0; right:0; height:3px;
+  background: linear-gradient(90deg,var(--blue),var(--teal));
+  transform: scaleX(0);
+  transition: transform 0.4s ease;
+  transform-origin: left;
+}
+.sim-step.lit::before { transform: scaleX(1); }
+.sim-step.lit {
+  border-color: rgba(0,201,167,0.3);
+  background: linear-gradient(135deg,#f0fffc,white);
+  box-shadow: 0 8px 32px rgba(0,201,167,0.15);
+  transform: translateY(-4px);
+}
+.ss-icon { font-size:2.2rem; display:block; margin-bottom:0.75rem; }
+.ss-num {
+  position: absolute; top:0.75rem; right:0.85rem;
+  font-size:0.6rem; font-weight:800;
+  color:var(--blue); opacity:0.5;
+  letter-spacing:0.05em;
+}
+.ss-title { font-weight:700; font-size:0.85rem; color:var(--slate); margin-bottom:0.3rem; }
+.ss-desc { font-size:0.65rem; color:var(--muted); line-height:1.5; }
+
+.sim-arrow {
+  position:absolute;
+  bottom:0; left:50%;
+  transform:translateX(-50%);
+  font-size:1.5rem;
+  color:var(--teal);
+  display:none;
+}
+.sim-step.lit .sim-arrow { display:block; }
+
+#run-sim-btn {
+  margin-top: 1.5rem;
+}
+
+/* ===== SLIDE 8: COST ===== */
+#s8 { background: linear-gradient(140deg,#fff8f0,white,#f0fff8); }
+
+.cost-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  max-width: 820px;
+  width: 100%;
+  align-items: start;
+}
+
+.cost-card {
+  background: white;
+  border-radius: var(--r2);
+  padding: 1.75rem;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(26,108,255,0.07);
+}
+.cost-title-row {
+  display: flex; align-items:center; gap:0.5rem;
+  margin-bottom: 1.25rem;
+}
+.cost-title-row h3 { font-weight:700; font-size:0.9rem; color:var(--slate); }
+
+.cost-row-item {
+  display: flex; justify-content:space-between; align-items:center;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid rgba(26,108,255,0.06);
+  font-size: 0.72rem;
+}
+.cost-row-item:last-child { border-bottom:none; }
+.cri-name { color:var(--muted); display:flex; align-items:center; gap:0.4rem; }
+.cri-amt { font-weight:700; color:var(--slate); }
+
+.cost-total-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: var(--r);
+  background: linear-gradient(135deg,var(--blue),var(--teal));
+  color: white;
+  display: flex; justify-content:space-between; align-items:center;
+}
+.ctb-label { font-size:0.72rem; font-weight:600; opacity:0.9; }
+.ctb-val { font-family:'Fraunces',serif; font-weight:700; font-size:1.5rem; }
+
+/* COMPARE TABLE */
+.compare-card {
+  background: white;
+  border-radius: var(--r2);
+  padding: 1.75rem;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(26,108,255,0.07);
+}
+.cmp-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.cmp-col {
+  border-radius: var(--r);
+  padding: 1.1rem;
+  text-align: center;
+}
+.cmp-manual { background:#fff5f2; border:1.5px solid #ffcab8; }
+.cmp-auto   { background:#f0fffc; border:1.5px solid rgba(0,201,167,0.25); }
+.cmp-icon { font-size:1.8rem; display:block; margin-bottom:0.5rem; }
+.cmp-name { font-weight:700; font-size:0.78rem; margin-bottom:0.5rem; }
+.cmp-manual .cmp-name { color:#d84315; }
+.cmp-auto   .cmp-name { color:var(--teal); }
+.cmp-item { font-size:0.62rem; color:var(--muted); padding:0.2rem 0; }
+
+/* ===== SLIDE 9: VIDEO ===== */
+#s9 { background: linear-gradient(150deg,#e8f4ff,white,#d4fdf4); }
+
+.video-frame {
+  width: min(720px, 88vw);
+  aspect-ratio: 16/9;
+  border-radius: var(--r2);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(26,108,255,0.2), 0 0 0 1px rgba(26,108,255,0.08);
+  background: linear-gradient(135deg,#e8f4ff,#d4fdf4);
+  position: relative;
+  display: flex; align-items:center; justify-content:center;
+}
+#demo-video {
+  width:100%; height:100%; object-fit:cover; display:none;
+}
+.vid-placeholder {
+  display:flex; flex-direction:column; align-items:center; gap:1.25rem; padding:2rem;
+}
+.vid-play-btn {
+  width:72px; height:72px; border-radius:50%;
+  background: linear-gradient(135deg,var(--blue),var(--teal));
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.8rem; color:white;
+  box-shadow: 0 8px 30px rgba(26,108,255,0.35);
+  cursor:pointer;
+  transition: transform 0.25s, box-shadow 0.25s;
+  animation: vidPulse 2.5s ease-in-out infinite;
+}
+.vid-play-btn:hover { transform:scale(1.12); box-shadow:0 14px 40px rgba(26,108,255,0.45); }
+@keyframes vidPulse {
+  0%,100% { box-shadow:0 8px 30px rgba(26,108,255,0.35); }
+  50%      { box-shadow:0 8px 45px rgba(0,201,167,0.4); }
+}
+.vid-label { font-weight:600; font-size:0.78rem; color:var(--muted); }
+
+/* ===== SLIDE 10: FINAL ===== */
+#s10 {
+  background: linear-gradient(135deg,#e8f4ff 0%,#d4fdf4 50%,#f0f7ff 100%);
+  overflow: hidden;
+}
+#s10 .bg-c1 { position:absolute; width:500px; height:500px; border-radius:50%; background:rgba(26,108,255,0.08); top:-120px; left:-80px; filter:blur(60px); pointer-events:none; }
+#s10 .bg-c2 { position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(0,201,167,0.07); bottom:-100px; right:-60px; filter:blur(60px); pointer-events:none; }
+
+.adv-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 1rem;
+  max-width: 700px;
+  width: 100%;
+}
+.adv-card {
+  background: white;
+  border-radius: var(--r2);
+  padding: 1.25rem 1rem;
+  text-align:center;
+  border: 1px solid rgba(26,108,255,0.08);
+  box-shadow: var(--shadow);
+  transition: transform 0.25s;
+}
+.adv-card:hover { transform: translateY(-5px); }
+.adv-icon { font-size:1.8rem; display:block; margin-bottom:0.5rem; }
+.adv-name { font-weight:700; font-size:0.8rem; color:var(--slate); margin-bottom:0.2rem; }
+.adv-desc { font-size:0.62rem; color:var(--muted); }
+
+.future-strip {
+  display: flex; gap:0.75rem; flex-wrap:wrap; justify-content:center;
+  margin-top: 1.5rem;
+}
+.future-pill {
+  padding: 0.45rem 1.1rem;
+  border-radius: 2rem;
+  font-size: 0.72rem; font-weight:600;
+  background: white;
+  border: 1.5px solid rgba(26,108,255,0.15);
+  color: var(--blue);
+  display:flex; align-items:center; gap:0.35rem;
+}
+
+.final-line {
+  font-family:'Fraunces',serif;
+  font-weight:700;
+  font-size:clamp(1.3rem,3.5vw,2rem);
+  text-align:center;
+  margin-top: 1.5rem;
+  background: linear-gradient(135deg,var(--slate),var(--blue),var(--teal));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+
+/* ===== SLIDE HEADINGS ===== */
+.slide-heading {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: clamp(1.6rem,4vw,2.5rem);
+  color: var(--slate);
+  text-align: center;
+  margin-bottom: 0.4rem;
+}
+.slide-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 2rem;
+  font-weight: 500;
+}
+
+/* ===== REVEAL ANIMATIONS ===== */
+.reveal { opacity:0; transform:translateY(24px); transition:opacity 0.5s ease, transform 0.5s ease; }
+.reveal.r-delay-1 { transition-delay:0.08s; }
+.reveal.r-delay-2 { transition-delay:0.16s; }
+.reveal.r-delay-3 { transition-delay:0.24s; }
+.reveal.r-delay-4 { transition-delay:0.32s; }
+.reveal.r-delay-5 { transition-delay:0.40s; }
+.slide.active .reveal { opacity:1; transform:translateY(0); }
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:700px){
+  .problem-grid { grid-template-columns:1fr; gap:0.75rem; }
+  .sim-steps    { grid-template-columns:1fr 1fr; }
+  .cost-container { grid-template-columns:1fr; }
+  .adv-grid     { grid-template-columns:1fr 1fr; }
+  .arch-flow    { gap:0.25rem; }
+  .arch-box     { width:80px; padding:0.6rem; }
+  .solution-flow { gap:0; }
+  .sol-circle   { width:60px; height:60px; font-size:1.4rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAVIGATION DOTS -->
+<div id="dots"></div>
+
+<!-- BOTTOM NAV -->
+<div id="nav">
+  <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)" disabled>←</button>
+  <span id="slide-counter">1 / 10</span>
+  <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">→</button>
+</div>
+
+<!-- SLIDES WRAPPER -->
+<div id="slides-wrapper">
+
+<!-- ============================== SLIDE 1 ============================== -->
+<div class="slide active" id="s1">
+  <div class="slide-tag">TEAM INTRODUCTION</div>
+  <div class="bg-circle bc1"></div>
+  <div class="bg-circle bc2"></div>
+
+  <!-- Particles -->
+  <div id="particles"></div>
+
+  <div class="glow-ring reveal"></div>
+
+  <div style="position:relative;z-index:1;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1.25rem;">
+    <div class="chip chip-blue reveal">◈ ENGINEERING PROJECT 2024–25</div>
+
+    <div class="team-name-3d reveal r-delay-1" id="teamName"></div>
+
+    <div class="reveal r-delay-2" style="font-size:clamp(0.85rem,2vw,1.1rem);color:var(--muted);font-weight:500;letter-spacing:0.04em;">
+      Innovating Smart Hygiene Systems
+    </div>
+
+    <div class="reveal r-delay-3" style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:center;">
+      <div class="chip chip-blue">🎓 B.Tech Project</div>
+      <div class="chip chip-teal">⚡ IoT + Embedded</div>
+    </div>
+
+    <button class="btn-primary reveal r-delay-4" onclick="changeSlide(1)" style="margin-top:0.5rem;">
+      Enter Project →
+    </button>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 2 ============================== -->
+<div class="slide" id="s2">
+  <div class="slide-tag">PROJECT TITLE</div>
+  <div class="s2-bg"></div>
+  <div class="s2-deco"></div>
+  <div class="s2-deco2"></div>
+
+  <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;gap:1rem;max-width:700px;width:100%;">
+    <div class="chip chip-teal reveal">💧 SMART HYGIENE AUTOMATION</div>
+
+    <div class="main-title reveal r-delay-1">CLEAN<br>STEP</div>
+
+    <div class="reveal r-delay-2">
+      <div class="subtitle-badge">Smart Sanitizing Entry System</div>
+    </div>
+
+    <p class="reveal r-delay-3" style="font-size:clamp(1rem,2.5vw,1.3rem);color:var(--muted);font-weight:500;max-width:440px;line-height:1.55;">
+      Automating hygiene at entry points — so people never have to think about it.
+    </p>
+
+    <div class="reveal r-delay-4" style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem;">
+      <div class="chip chip-blue">🔬 IR Sensing</div>
+      <div class="chip chip-teal">⚙️ Auto Pump</div>
+      <div class="chip chip-blue">🟢 LED Feedback</div>
+    </div>
+
+    <button class="btn-primary reveal r-delay-5" onclick="changeSlide(1)" style="margin-top:0.75rem;">
+      See the Problem →
+    </button>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 3 ============================== -->
+<div class="slide" id="s3">
+  <div class="slide-tag">THE PROBLEM</div>
+
+  <div class="slide-heading reveal">Why Does This Exist?</div>
+  <div class="slide-sub reveal r-delay-1">Manual hygiene systems are fundamentally broken.</div>
+
+  <div class="problem-grid reveal r-delay-2">
+    <div class="prob-card">
+      <span class="prob-icon">🧠</span>
+      <div class="prob-title">Human Negligence</div>
+      <div class="prob-desc">People forget or skip sanitation steps at busy entry points.</div>
+    </div>
+    <div class="prob-card">
+      <span class="prob-icon">🚫</span>
+      <div class="prob-title">No Enforcement</div>
+      <div class="prob-desc">Zero automated mechanism to ensure hygiene compliance.</div>
+    </div>
+    <div class="prob-card">
+      <span class="prob-icon">🦠</span>
+      <div class="prob-title">Infection Risk</div>
+      <div class="prob-desc">Contaminated surfaces spread pathogens rapidly in shared spaces.</div>
+    </div>
+  </div>
+
+  <div class="problem-headline reveal r-delay-3">
+    "Manual hygiene systems fail."
+  </div>
+
+  <button class="btn-primary reveal r-delay-4" onclick="changeSlide(1)" style="margin-top:1.5rem;">
+    See the Solution →
+  </button>
+</div>
+
+<!-- ============================== SLIDE 4 ============================== -->
+<div class="slide" id="s4">
+  <div class="slide-tag">THE SOLUTION</div>
+
+  <div class="slide-heading reveal">Our Idea</div>
+  <div class="slide-sub reveal r-delay-1">A seamless flow from detection to safe entry.</div>
+
+  <div class="solution-flow reveal r-delay-2">
+    <div class="sol-node">
+      <div class="sol-circle sol-c1">👤</div>
+      <div class="sol-label">User</div>
+      <div class="sol-sub">Approaches entry</div>
+    </div>
+    <span class="sol-arrow">›</span>
+    <div class="sol-node">
+      <div class="sol-circle sol-c2">📡</div>
+      <div class="sol-label">Detect</div>
+      <div class="sol-sub">IR Sensor fires</div>
+    </div>
+    <span class="sol-arrow">›</span>
+    <div class="sol-node">
+      <div class="sol-circle sol-c3">💧</div>
+      <div class="sol-label">Sanitize</div>
+      <div class="sol-sub">Spray released</div>
+    </div>
+    <span class="sol-arrow">›</span>
+    <div class="sol-node">
+      <div class="sol-circle sol-c4">✅</div>
+      <div class="sol-label">Entry</div>
+      <div class="sol-sub">LED turns green</div>
+    </div>
+  </div>
+
+  <div class="tag-row reveal r-delay-3">
+    <span class="solution-tag st1">⚡ Smart</span>
+    <span class="solution-tag st2">🔄 Automatic</span>
+    <span class="solution-tag st3">📈 Efficient</span>
+  </div>
+
+  <button class="btn-primary reveal r-delay-4" onclick="changeSlide(1)" style="margin-top:1.5rem;">
+    View Architecture →
+  </button>
+</div>
+
+<!-- ============================== SLIDE 5 ============================== -->
+<div class="slide" id="s5">
+  <div class="slide-tag">SYSTEM ARCHITECTURE</div>
+
+  <div class="slide-heading reveal">How It Works Inside</div>
+  <div class="slide-sub reveal r-delay-1">Five interconnected components form a seamless loop.</div>
+
+  <div class="arch-flow reveal r-delay-2">
+    <div class="arch-node">
+      <div class="arch-box ab1">
+        <span class="arch-icon">👤</span>
+        <div class="arch-name">User</div>
+        <div class="arch-desc">Steps on mat</div>
+      </div>
+    </div>
+    <div class="arch-arrow-wrap"><span class="arch-arr">→</span></div>
+    <div class="arch-node">
+      <div class="arch-box ab2">
+        <span class="arch-icon">📡</span>
+        <div class="arch-name">IR Sensor</div>
+        <div class="arch-desc">Detects presence</div>
+      </div>
+    </div>
+    <div class="arch-arrow-wrap"><span class="arch-arr">→</span></div>
+    <div class="arch-node">
+      <div class="arch-box ab3">
+        <span class="arch-icon">🔧</span>
+        <div class="arch-name">Controller</div>
+        <div class="arch-desc">Arduino UNO</div>
+      </div>
+    </div>
+    <div class="arch-arrow-wrap"><span class="arch-arr">→</span></div>
+    <div class="arch-node">
+      <div class="arch-box ab4">
+        <span class="arch-icon">⚙️</span>
+        <div class="arch-name">DC Pump</div>
+        <div class="arch-desc">Pumps sanitizer</div>
+      </div>
+    </div>
+    <div class="arch-arrow-wrap"><span class="arch-arr">→</span></div>
+    <div class="arch-node">
+      <div class="arch-box ab5">
+        <span class="arch-icon">💧</span>
+        <div class="arch-name">Spray</div>
+        <div class="arch-desc">Sanitizes feet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection line -->
+  <div class="reveal r-delay-3" style="max-width:700px;width:100%;margin-top:1.5rem;">
+    <div style="background:white;border-radius:var(--r);padding:1rem 1.5rem;border:1px solid rgba(26,108,255,0.1);box-shadow:var(--shadow);display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center;">
+      <div style="text-align:center;">
+        <div style="font-weight:700;font-size:0.78rem;color:var(--slate);">Response Time</div>
+        <div style="font-size:1.4rem;font-weight:800;color:var(--blue);font-family:'Fraunces',serif;">&lt;5ms</div>
+      </div>
+      <div style="width:1px;background:rgba(26,108,255,0.1);"></div>
+      <div style="text-align:center;">
+        <div style="font-weight:700;font-size:0.78rem;color:var(--slate);">Power</div>
+        <div style="font-size:1.4rem;font-weight:800;color:var(--teal);font-family:'Fraunces',serif;">12V DC</div>
+      </div>
+      <div style="width:1px;background:rgba(26,108,255,0.1);"></div>
+      <div style="text-align:center;">
+        <div style="font-weight:700;font-size:0.78rem;color:var(--slate);">Accuracy</div>
+        <div style="font-size:1.4rem;font-weight:800;color:var(--gold);font-family:'Fraunces',serif;">92%+</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-primary reveal r-delay-4" onclick="changeSlide(1)" style="margin-top:1.5rem;">
+    See the Prototype →
+  </button>
+</div>
+
+<!-- ============================== SLIDE 6 ============================== -->
+<div class="slide" id="s6">
+  <div class="slide-tag">PROTOTYPE MODEL</div>
+
+  <div class="slide-heading reveal">Physical Prototype</div>
+  <div class="slide-sub reveal r-delay-1">Hover the labels to explore each component.</div>
+
+  <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;">
+    <div class="proto-frame reveal r-delay-2">
+      <img id="prototype-img" src="" alt="Prototype">
+      <div class="proto-placeholder" id="proto-ph">
+        <span class="ph-icon">🖼️</span>
+        <div class="ph-txt">Upload your prototype image<br>using the button below</div>
+      </div>
+
+      <!-- Labels -->
+      <div class="proto-label pl-sensor" title="IR Sensor — Detects user"><div class="label-dot"></div>📡 IR Sensor</div>
+      <div class="proto-label pl-tank"   title="Tank — Holds sanitizer"><div class="label-dot" style="background:var(--teal)"></div>🪣 Tank</div>
+      <div class="proto-label pl-pump"   title="DC Pump — Drives flow"><div class="label-dot" style="background:var(--gold)"></div>⚙️ Pump</div>
+      <div class="proto-label pl-nozzle" title="Nozzle — Spray output"><div class="label-dot" style="background:#06b6d4"></div>💧 Nozzle</div>
+      <div class="proto-label pl-mat"    title="Mat — Sanitizing surface"><div class="label-dot" style="background:#8b5cf6"></div>🟫 Mat</div>
+      <div class="proto-label pl-led"    title="LED — Status indicator"><div class="label-dot" style="background:#16a34a"></div>🟢 LED</div>
+    </div>
+
+    <label class="upload-btn reveal r-delay-3">
+      📁 Upload Prototype Image
+      <input type="file" id="img-input" accept="image/*" onchange="loadImage(this)">
+    </label>
+  </div>
+
+  <button class="btn-primary reveal r-delay-4" onclick="changeSlide(1)" style="margin-top:1rem;">
+    See Simulation →
+  </button>
+</div>
+
+<!-- ============================== SLIDE 7 ============================== -->
+<div class="slide" id="s7">
+  <div class="slide-tag">WORKING SIMULATION</div>
+
+  <div class="slide-heading reveal">Step-by-Step Cycle</div>
+  <div class="slide-sub reveal r-delay-1">Click "Run Simulation" to watch the system operate.</div>
+
+  <div class="sim-steps reveal r-delay-2">
+    <div class="sim-step" id="simStep0">
+      <span class="ss-num">01</span>
+      <span class="ss-icon">👤</span>
+      <div class="ss-title">Detect</div>
+      <div class="ss-desc">IR Sensor detects user presence at entry point</div>
+    </div>
+    <div class="sim-step" id="simStep1">
+      <span class="ss-num">02</span>
+      <span class="ss-icon">⚡</span>
+      <div class="ss-title">Trigger</div>
+      <div class="ss-desc">Arduino sends signal to pump relay instantly</div>
+    </div>
+    <div class="sim-step" id="simStep2">
+      <span class="ss-num">03</span>
+      <span class="ss-icon">💧</span>
+      <div class="ss-title">Spray</div>
+      <div class="ss-desc">Sanitizer mist released across entire foot mat</div>
+    </div>
+    <div class="sim-step" id="simStep3">
+      <span class="ss-num">04</span>
+      <span class="ss-icon">✅</span>
+      <div class="ss-title">Done</div>
+      <div class="ss-desc">LED turns green — sanitized entry confirmed</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:1.25rem;" class="reveal r-delay-3">
+    <button class="btn-primary" id="run-sim-btn" onclick="runSimulation()">▶ Run Simulation</button>
+    <button onclick="resetSim()" style="padding:0.75rem 1.4rem;border-radius:2rem;border:1.5px solid rgba(26,108,255,0.2);background:transparent;color:var(--blue);font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;font-size:0.8rem;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(26,108,255,0.06)'" onmouseout="this.style.background='transparent'">↺ Reset</button>
+  </div>
+
+  <button class="btn-primary reveal r-delay-4" onclick="changeSlide(1)" style="margin-top:0.75rem;background:linear-gradient(135deg,#1e2d4a,#2d4070);">
+    Cost & Impact →
+  </button>
+</div>
+
+<!-- ============================== SLIDE 8 ============================== -->
+<div class="slide" id="s8">
+  <div class="slide-tag">COST + IMPACT</div>
+
+  <div class="slide-heading reveal">Investment & Value</div>
+  <div class="slide-sub reveal r-delay-1">Affordable hardware with measurable real-world impact.</div>
+
+  <div class="cost-container reveal r-delay-2">
+    <!-- Cost Breakdown -->
+    <div class="cost-card">
+      <div class="cost-title-row">
+        <span>💰</span>
+        <h3>Bill of Materials</h3>
+      </div>
+      <div class="cost-row-item"><span class="cri-name">📡 IR Sensor (×2)</span><span class="cri-amt">₹150</span></div>
+      <div class="cost-row-item"><span class="cri-name">🔧 Arduino Uno</span><span class="cri-amt">₹550</span></div>
+      <div class="cost-row-item"><span class="cri-name">⚙️ DC Pump Motor</span><span class="cri-amt">₹350</span></div>
+      <div class="cost-row-item"><span class="cri-name">💧 Spray Nozzle</span><span class="cri-amt">₹120</span></div>
+      <div class="cost-row-item"><span class="cri-name">🟢 LED + Resistors</span><span class="cri-amt">₹30</span></div>
+      <div class="cost-row-item"><span class="cri-name">🪣 Tank + Mat + Pipe</span><span class="cri-amt">₹350</span></div>
+      <div class="cost-row-item"><span class="cri-name">🔌 Power + Misc</span><span class="cri-amt">₹350</span></div>
+      <div class="cost-total-box">
+        <span class="ctb-label">TOTAL COST</span>
+        <span class="ctb-val">≈ ₹1,900</span>
+      </div>
+    </div>
+
+    <!-- Before vs After -->
+    <div class="compare-card">
+      <div class="cost-title-row">
+        <span>⚖️</span>
+        <h3>Before vs After</h3>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-col cmp-manual">
+          <span class="cmp-icon">❌</span>
+          <div class="cmp-name">Manual</div>
+          <div class="cmp-item">Needs staff</div>
+          <div class="cmp-item">Human error</div>
+          <div class="cmp-item">Inconsistent</div>
+          <div class="cmp-item">High cost</div>
+        </div>
+        <div class="cmp-col cmp-auto">
+          <span class="cmp-icon">✅</span>
+          <div class="cmp-name">CleanStep</div>
+          <div class="cmp-item">Fully automatic</div>
+          <div class="cmp-item">Zero error</div>
+          <div class="cmp-item">Always reliable</div>
+          <div class="cmp-item">One-time cost</div>
+        </div>
+      </div>
+      <div style="margin-top:1rem;padding:0.85rem;border-radius:var(--r);background:linear-gradient(135deg,rgba(0,201,167,0.08),rgba(26,108,255,0.06));border:1px solid rgba(0,201,167,0.2);text-align:center;">
+        <div style="font-weight:700;font-size:0.82rem;color:var(--slate);">ROI in &lt;3 Months</div>
+        <div style="font-size:0.65rem;color:var(--muted);margin-top:0.2rem;">vs. hiring a dedicated hygiene worker</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-primary reveal r-delay-3" onclick="changeSlide(1)" style="margin-top:1.5rem;">
+    Watch Demo Video →
+  </button>
+</div>
+
+<!-- ============================== SLIDE 9 ============================== -->
+<div class="slide" id="s9">
+  <div class="slide-tag">VIDEO DEMONSTRATION</div>
+
+  <div class="slide-heading reveal">System Demonstration</div>
+  <div class="slide-sub reveal r-delay-1">See the full sanitizing cycle in action.</div>
+
+  <div class="video-frame reveal r-delay-2">
+    <video id="demo-video" controls></video>
+    <div class="vid-placeholder" id="vid-ph">
+      <div class="vid-play-btn" onclick="document.getElementById('vid-input').click()">▶</div>
+      <div class="vid-label">Upload your demo video to play here</div>
+      <div style="font-size:0.62rem;color:#bcc8d8;text-align:center;">Supports MP4, WebM · Click the button to upload</div>
+    </div>
+  </div>
+
+  <label class="upload-btn reveal r-delay-3">
+    🎬 Upload Demo Video
+    <input type="file" id="vid-input" accept="video/*" onchange="loadVideo(this)">
+  </label>
+
+  <button class="btn-primary reveal r-delay-4" onclick="changeSlide(1)" style="margin-top:0.75rem;">
+    See Conclusions →
+  </button>
+</div>
+
+<!-- ============================== SLIDE 10 ============================== -->
+<div class="slide" id="s10">
+  <div class="slide-tag">CONCLUSION</div>
+  <div class="bg-c1"></div>
+  <div class="bg-c2"></div>
+
+  <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:0;">
+    <div class="slide-heading reveal">Why CleanStep Wins</div>
+    <div class="slide-sub reveal r-delay-1">Built smart. Priced right. Scales everywhere.</div>
+
+    <div class="adv-grid reveal r-delay-2">
+      <div class="adv-card">
+        <span class="adv-icon">💸</span>
+        <div class="adv-name">Low Cost</div>
+        <div class="adv-desc">Under ₹2000 for full deployment</div>
+      </div>
+      <div class="adv-card">
+        <span class="adv-icon">📈</span>
+        <div class="adv-name">Scalable</div>
+        <div class="adv-desc">Works from schools to hospitals</div>
+      </div>
+      <div class="adv-card">
+        <span class="adv-icon">⚡</span>
+        <div class="adv-name">Efficient</div>
+        <div class="adv-desc">92%+ system uptime, &lt;5ms response</div>
+      </div>
+    </div>
+
+    <div class="future-strip reveal r-delay-3">
+      <div class="future-pill">🌐 IoT Integration</div>
+      <div class="future-pill">🤖 AI Footfall Analytics</div>
+      <div class="future-pill">📱 Mobile Dashboard</div>
+      <div class="future-pill">☁️ Cloud Monitoring</div>
+    </div>
+
+    <div class="final-line reveal r-delay-4">
+      "CleanStep makes hygiene automatic."
+    </div>
+
+    <div class="reveal r-delay-5" style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;margin-top:1.25rem;">
+      <button class="btn-primary" onclick="goToSlide(0)">↩ Start Over</button>
+      <button onclick="changeSlide(-1)" style="padding:0.85rem 1.8rem;border-radius:3rem;border:1.5px solid rgba(26,108,255,0.25);background:white;color:var(--blue);font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:var(--shadow);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">← Back</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- end slides-wrapper -->
+
+<!-- ===== SCRIPT ===== -->
+<script>
+// ======= SLIDE SYSTEM =======
+const slides = document.querySelectorAll('.slide');
+const totalSlides = slides.length;
+let current = 0;
+let animating = false;
+
+// Build dots
+const dotsEl = document.getElementById('dots');
+for(let i=0;i<totalSlides;i++){
+  const d = document.createElement('div');
+  d.className = 'dot' + (i===0?' active':'');
+  d.onclick = ()=>goToSlide(i);
+  d.title = `Slide ${i+1}`;
+  dotsEl.appendChild(d);
+}
+
+function goToSlide(idx){
+  if(animating || idx===current) return;
+  animating = true;
+  const dir = idx > current ? 1 : -1;
+
+  slides[current].classList.add('exit-left');
+  slides[current].classList.remove('active');
+
+  setTimeout(()=>{
+    slides[current].classList.remove('exit-left');
+    current = idx;
+    slides[current].style.transform = `translateX(${dir*60}px) scale(0.97)`;
+    slides[current].style.opacity = '0';
+    slides[current].classList.add('active');
+
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        slides[current].style.transform = '';
+        slides[current].style.opacity = '';
+      });
+    });
+
+    updateNav();
+    animating = false;
+  }, 420);
+}
+
+function changeSlide(dir){
+  const next = current + dir;
+  if(next < 0 || next >= totalSlides) return;
+  goToSlide(next);
+}
+
+function updateNav(){
+  document.getElementById('slide-counter').textContent = `${current+1} / ${totalSlides}`;
+  document.getElementById('prevBtn').disabled = current===0;
+  document.getElementById('nextBtn').disabled = current===totalSlides-1;
+  document.querySelectorAll('.dot').forEach((d,i)=>{
+    d.classList.toggle('active', i===current);
+  });
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown') changeSlide(1);
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp') changeSlide(-1);
+});
+
+// Touch swipe
+let touchX = 0;
+document.addEventListener('touchstart', e=>{ touchX = e.touches[0].clientX; });
+document.addEventListener('touchend', e=>{
+  const dx = e.changedTouches[0].clientX - touchX;
+  if(Math.abs(dx)>50) changeSlide(dx<0?1:-1);
+});
+
+// ======= SLIDE 1 SETUP =======
+const teamStr = 'C-R-E-O-V-A-T-308';
+const tn = document.getElementById('teamName');
+teamStr.split('').forEach((ch,i)=>{
+  const sp = document.createElement('span');
+  sp.textContent = ch;
+  if(ch===' ') sp.innerHTML = '&nbsp;';
+  sp.style.animationDelay = (i*0.07)+'s';
+  tn.appendChild(sp);
+});
+
+// Particles
+const pWrap = document.getElementById('particles');
+for(let i=0;i<22;i++){
+  const p = document.createElement('div');
+  const size = 4+Math.random()*10;
+  p.className = 'particle';
+  p.style.cssText = `
+    width:${size}px;height:${size}px;
+    left:${Math.random()*100}%;
+    top:${30+Math.random()*60}%;
+    background:${Math.random()>0.5?'rgba(26,108,255,0.35)':'rgba(0,201,167,0.35)'};
+    animation-duration:${3+Math.random()*5}s;
+    animation-delay:${Math.random()*4}s;
+  `;
+  pWrap.appendChild(p);
+}
+
+// ======= SIMULATION =======
+let simRunning = false;
+function runSimulation(){
+  if(simRunning) return;
+  simRunning = true;
+  document.getElementById('run-sim-btn').disabled = true;
+  document.getElementById('run-sim-btn').textContent = '⏳ Running...';
+  const steps = [0,1,2,3];
+  steps.forEach((s,i)=>{
+    setTimeout(()=>{
+      document.getElementById('simStep'+s).classList.add('lit');
+      if(i===steps.length-1){
+        setTimeout(()=>{
+          document.getElementById('run-sim-btn').disabled = false;
+          document.getElementById('run-sim-btn').textContent = '▶ Run Again';
+          simRunning = false;
+        }, 800);
+      }
+    }, i*900);
+  });
+}
+
+function resetSim(){
+  simRunning = false;
+  for(let i=0;i<4;i++) document.getElementById('simStep'+i).classList.remove('lit');
+  document.getElementById('run-sim-btn').disabled = false;
+  document.getElementById('run-sim-btn').textContent = '▶ Run Simulation';
+}
+
+// ======= IMAGE UPLOAD =======
+function loadImage(input){
+  const file = input.files[0];
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  const img = document.getElementById('prototype-img');
+  const ph = document.getElementById('proto-ph');
+  img.src = url;
+  img.style.display = 'block';
+  ph.style.display = 'none';
+}
+
+// ======= VIDEO UPLOAD =======
+function loadVideo(input){
+  const file = input.files[0];
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  const vid = document.getElementById('demo-video');
+  const ph = document.getElementById('vid-ph');
+  vid.src = url;
+  vid.style.display = 'block';
+  ph.style.display = 'none';
+}
+
+// Initial nav state
+updateNav();
+</script>
+</body>
+</html>
